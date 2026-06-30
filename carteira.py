@@ -12,17 +12,20 @@ from email.message import EmailMessage
 # Configurações
 DB_NAME = "carteira_quant.db"
 
-# --- MÓDULOS DE SEGURANÇA E BACKUP ---
+# --- MÓDULO DE SEGURANÇA (Profissional) ---
 def verificar_credenciais(usuario, senha):
-    # E-mail corrigido
-    return usuario == "yurygabriel1.40@gmail.com" and senha == "Bahia2026"
+    # Hash correspondente à senha "Bahia2026"
+    hash_da_senha = "9200fa4644026da68997ef05dc6b5fe73229239a5ca2d699e69777f97b6ec340"
+    return usuario == "yurygabriel1.40@gmail.com" and hashlib.sha256(senha.encode()).hexdigest() == hash_da_senha
 
 def realizar_backup_banco():
-    if not os.path.exists("backup_financas"): os.makedirs("backup_financas")
-    shutil.copy2(DB_NAME, f"backup_financas/backup_{datetime.now().strftime('%Y%m%d_%H%M')}.db")
+    # Verifica se o arquivo existe antes de tentar copiar
+    if os.path.exists(DB_NAME):
+        if not os.path.exists("backup_financas"):
+            os.makedirs("backup_financas")
+        shutil.copy2(DB_NAME, f"backup_financas/backup_{datetime.now().strftime('%Y%m%d_%H%M')}.db")
 
 def enviar_alerta_oportunidade(ticker, preco_atual):
-    # E-mail corrigido para envio e recebimento
     email_usuario = "yurygabriel1.40@gmail.com"
     senha_app = "dzdcamwbmrejscal" 
     msg = EmailMessage()
@@ -34,7 +37,8 @@ def enviar_alerta_oportunidade(ticker, preco_atual):
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
             smtp.login(email_usuario, senha_app)
             smtp.send_message(msg)
-    except: pass
+    except Exception: 
+        pass
 
 # --- MÓDULO DE IMPORTAÇÃO E BANCO ---
 def inicializar_banco():
@@ -57,16 +61,20 @@ def processar_arquivo_bancario(uploaded_file):
 def main():
     st.set_page_config(page_title="Mesa Quant v45.0", layout="wide")
     
-    if "autenticado" not in st.session_state: st.session_state["autenticado"] = False
+    if "autenticado" not in st.session_state: 
+        st.session_state["autenticado"] = False
         
     if not st.session_state["autenticado"]:
         st.title("🔐 Terminal Quantitativo v45.0")
         user = st.text_input("E-mail")
         pwd = st.text_input("Senha", type="password")
-        if st.button("Entrar") and verificar_credenciais(user, pwd):
-            st.session_state["autenticado"] = True
-            realizar_backup_banco()
-            st.rerun()
+        if st.button("Entrar"):
+            if verificar_credenciais(user, pwd):
+                st.session_state["autenticado"] = True
+                realizar_backup_banco()
+                st.rerun()
+            else:
+                st.error("Credenciais inválidas.")
         return
 
     inicializar_banco()
@@ -74,7 +82,9 @@ def main():
     
     with st.expander("📥 Importar Extrato Bancário"):
         arquivo = st.file_uploader("Suba o CSV do seu banco:", type=["csv"])
-        if st.button("Processar Extrato"): processar_arquivo_bancario(arquivo)
+        if st.button("Processar Extrato"): 
+            processar_arquivo_bancario(arquivo)
 
 if __name__ == "__main__":
     main()
+
