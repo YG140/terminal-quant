@@ -24,7 +24,7 @@ class NucleoOperacional:
     def _inicializar_banco(self):
         with sqlite3.connect(DB_NAME) as conn:
             conn.execute("""CREATE TABLE IF NOT EXISTS ativos (ticker TEXT PRIMARY KEY, classe TEXT, quantidade REAL, preco_medio REAL, peso INTEGER)""")
-            conn.execute("""CREATE TABLE IF NOT EXISTS configuracoes (chave TEXT PRIMARY KEY, valor REAL)""")
+            conn.execute("""CREATE TABLE IF NOT EXISTS historico_patrimonio (mes_ano TEXT PRIMARY KEY, patrimonio REAL, proventos REAL)""")
             conn.execute("""CREATE TABLE IF NOT EXISTS usuarios (email TEXT PRIMARY KEY, hash_senha TEXT)""")
             
             cursor = conn.cursor()
@@ -41,7 +41,6 @@ class NucleoOperacional:
 
     @staticmethod
     def disparar_alerta_email(ticker, preco, motivo):
-        # Configure aqui seus dados (recomendo usar st.secrets no Streamlit Cloud)
         EMAIL_ADDRESS = "seu_email@gmail.com" 
         EMAIL_PASSWORD = "sua_senha_de_app"
         msg = EmailMessage()
@@ -64,15 +63,6 @@ class NucleoOperacional:
             row = cursor.fetchone()
             if row: return hashlib.sha256(pwd.strip().encode()).hexdigest() == row[0]
         return False
-
-    @staticmethod
-    def atualizar_senha(user, nova_senha):
-        with sqlite3.connect(DB_NAME) as conn:
-            novo_hash = hashlib.sha256(nova_senha.strip().encode()).hexdigest()
-            cursor = conn.cursor()
-            cursor.execute("UPDATE usuarios SET hash_senha=? WHERE email=?", (novo_hash, user.strip()))
-            conn.commit()
-            return cursor.rowcount > 0
 
 # ==============================================================================
 # 2. MOTOR DE IA E FUNDAMENTOS
@@ -110,7 +100,7 @@ class AnalisadorGlobal:
         return resultado
 
 # ==============================================================================
-# 3. INTERFACE GRÁFICA
+# 3. INTERFACE PRINCIPAL
 # ==============================================================================
 def main():
     st.set_page_config(page_title="Mesa Quant Master", layout="wide")
@@ -145,7 +135,7 @@ def main():
                 st.rerun()
 
     with t2:
-        ticker = st.text_input("Auditar:")
+        ticker = st.text_input("Auditar Ticker:")
         if st.button("Analisar"):
             res = AnalisadorGlobal.prever_tendencia_e_fundamentos(ticker)
             st.write(res)
@@ -161,12 +151,37 @@ def main():
                     st.success(f"✅ {row['ticker']} aprovado e e-mail enviado!")
 
     with t4:
-        st.subheader("Simulador de Independência")
-        # (Lógica mantida conforme código anterior)
-        st.info("Simulador disponível.")
+        st.subheader("🎯 Planejador de Renda Passiva")
+        meta_mensal = st.number_input("Quanto deseja receber de dividendos por mês? (R$):", min_value=100.0, value=2000.0, step=100.0)
+        yield_estimado = st.slider("Yield Mensal Estimado (%)", 0.5, 1.5, 0.8) / 100
+        
+        if st.button("Calcular Gap de Aporte"):
+            with sqlite3.connect(DB_NAME) as conn:
+                df_ativos = pd.read_sql("SELECT * FROM ativos WHERE ticker != 'RESERVA'", conn)
+            
+            plano_de_acao = []
+            for _, row in df_ativos.iterrows():
+                ticker = row['ticker']
+                res = AnalisadorGlobal.prever_tendencia_e_fundamentos(ticker)
+                if res['preco'] > 0:
+                    qtd_alvo = int((meta_mensal / len(df_ativos)) / (res['preco'] * yield_estimado))
+                    gap = max(0, qtd_alvo - row['quantidade'])
+                    plano_de_acao.append({
+                        "Ativo": ticker,
+                        "Qtd Atual": row['quantidade'],
+                        "Qtd Alvo": qtd_alvo,
+                        "Gap (Falta Comprar)": gap,
+                        "Custo p/ Bater Meta (R$)": round(gap * res['preco'], 2)
+                    })
+            
+            df_plano = pd.DataFrame(plano_de_acao)
+            st.table(df_plano)
+            csv = df_plano.to_csv(index=False).encode('utf-8')
+            st.download_button("📥 Baixar Plano de Ação (CSV)", csv, 'plano_aporte_meta.csv', 'text/csv')
 
 if __name__ == "__main__":
     main()
+
 
 
 
