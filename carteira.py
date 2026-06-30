@@ -6,14 +6,15 @@ import shutil
 import pandas as pd
 from datetime import datetime
 
-# Configurações
+# Configurações do Banco
 DB_NAME = "carteira_quant.db"
 
-# --- MÓDULO DE SEGURANÇA ---
+# --- SEGURANÇA COM HASH (SHA256) ---
 def verificar_credenciais(usuario, senha):
     # Hash validado para "Bahia2026"
     hash_correto = "aa78f445e7b478beec6ac69594a3c6cc50cf9171405ef4471808d4dd0485d600"
-    hash_digitado = hashlib.sha256(senha.strip().encode('utf-8')).hexdigest()
+    senha_limpa = senha.strip()
+    hash_digitado = hashlib.sha256(senha_limpa.encode('utf-8')).hexdigest()
     return usuario.strip() == "yurygabriel1.40@gmail.com" and hash_digitado == hash_correto
 
 def realizar_backup_banco():
@@ -31,26 +32,27 @@ def inicializar_banco():
     conn.commit()
     conn.close()
 
-def processar_arquivo_bancario(uploaded_file):
-    if uploaded_file is not None:
-        try:
-            df = pd.read_csv(uploaded_file)
-            # Limpeza de colunas para garantir compatibilidade
-            df.columns = [c.lower().strip().replace(" ", "_") for c in df.columns]
-            
-            # Verificação de colunas mínimas necessárias
-            colunas_necessarias = ['data', 'ticker', 'tipo', 'quantidade', 'preco']
-            for col in colunas_necessarias:
-                if col not in df.columns:
-                    st.error(f"Erro: O arquivo CSV não contém a coluna obrigatória: {col}")
-                    return
+def processar_arquivo_bancario(uploaded_file, ticker_manual):
+    try:
+        df = pd.read_csv(uploaded_file)
+        df.columns = [c.lower().strip().replace(" ", "_") for c in df.columns]
+        
+        # Injeta o ticker manual se não existir
+        df['ticker'] = ticker_manual.upper()
+        
+        # Verifica colunas necessárias
+        colunas_obrigatorias = ['data', 'ticker', 'tipo', 'quantidade', 'preco']
+        for col in colunas_obrigatorias:
+            if col not in df.columns:
+                st.error(f"Erro: O arquivo não contém a coluna obrigatória: {col}")
+                return
 
-            conn = sqlite3.connect(DB_NAME)
-            df.to_sql('tb_transacoes_v39', conn, if_exists='append', index=False)
-            conn.close()
-            st.success("✅ Extrato processado e salvo com sucesso!")
-        except Exception as e:
-            st.error(f"Erro ao processar arquivo: {e}")
+        conn = sqlite3.connect(DB_NAME)
+        df.to_sql('tb_transacoes_v39', conn, if_exists='append', index=False)
+        conn.close()
+        st.success("✅ Extrato processado e salvo com sucesso!")
+    except Exception as e:
+        st.error(f"Erro ao processar arquivo: {e}")
 
 # --- INTERFACE PRINCIPAL ---
 def main():
@@ -72,17 +74,23 @@ def main():
                 st.error("Credenciais inválidas.")
         return
 
-    # Painel Principal
+    # Painel Principal após Login
     inicializar_banco()
     st.title("🛰️ Terminal Quantitativo Pro v45.0")
     
     with st.expander("📥 Importar Extrato Bancário"):
         arquivo = st.file_uploader("Suba o CSV do seu banco:", type=["csv"])
-        if st.button("Processar Extrato"): 
-            processar_arquivo_bancario(arquivo)
+        ticker_input = st.text_input("Digite o ticker das operações (ex: PETR4):")
+        
+        if st.button("Processar Extrato"):
+            if arquivo and ticker_input:
+                processar_arquivo_bancario(arquivo, ticker_input)
+            else:
+                st.warning("Por favor, selecione o arquivo e digite o ticker.")
 
 if __name__ == "__main__":
     main()
+
 
 
 
