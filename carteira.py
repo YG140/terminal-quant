@@ -1,21 +1,17 @@
+
 import streamlit as st
 import hashlib
 
 def verificar_credenciais(usuario, senha):
-    # Hash correto esperado para "Bahia2026"
-    hash_alvo = "9200fa4644026da68997ef05dc6b5fe73229239a5ca2d699e69777f97b6ec340"
+    # O hash que o seu celular gerou:
+    hash_correto = "aa78f445e7b478beec6ac69594a3c6cc50cf9171405ef4471808d4dd0485d600"
     
     # Processa a senha
     senha_limpa = senha.strip()
     hash_digitado = hashlib.sha256(senha_limpa.encode('utf-8')).hexdigest()
     
-    # Diagnóstico: Se não bater, mostra o hash na tela
-    if hash_digitado != hash_alvo:
-        st.error(f"Erro de Hash! O que o sistema calculou foi: {hash_digitado}")
-        return False
-        
-    # Verifica usuário
-    return usuario.strip() == "yurygabriel1.40@gmail.com"
+    # Verifica usuário e hash
+    return usuario.strip() == "yurygabriel1.40@gmail.com" and hash_digitado == hash_correto
 
 def main():
     st.set_page_config(page_title="Mesa Quant v45.0", layout="wide")
@@ -36,6 +32,7 @@ def main():
                 st.error("Credenciais inválidas.")
         return
 
+    # Área Protegida
     st.title("🛰️ Terminal Quantitativo Pro v45.0")
     st.success("Acesso concedido com sucesso!")
 
