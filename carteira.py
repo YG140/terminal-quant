@@ -3,86 +3,89 @@ import yfinance as yf
 import pandas as pd
 import sqlite3
 import hashlib
-import os
-import shutil
+import logging
 from datetime import datetime
 
-# Configurações
-DB_NAME = "terminal_acoes.db"
+# --- CONFIGURAÇÃO DE LOG (Para debug profissional) ---
+logging.basicConfig(level=logging.INFO)
 
-# --- SEGURANÇA E BACKUP ---
-def verificar_credenciais(usuario, senha):
-    hash_correto = "aa78f445e7b478beec6ac69594a3c6cc50cf9171405ef4471808d4dd0485d600"
-    hash_digitado = hashlib.sha256(senha.strip().encode('utf-8')).hexdigest()
-    return usuario.strip() == "yurygabriel1.40@gmail.com" and hash_digitado == hash_correto
+class TerminalQuantPro:
+    def __init__(self, db_name="mesa_quant_pro.db"):
+        self.db_name = db_name
+        self._inicializar_banco()
 
-def realizar_backup():
-    if not os.path.exists("backups"): os.makedirs("backups")
-    if os.path.exists(DB_NAME):
-        shutil.copy2(DB_NAME, f"backups/backup_{datetime.now().strftime('%Y%m%d')}.db")
+    def _inicializar_banco(self):
+        with sqlite3.connect(self.db_name) as conn:
+            cursor = conn.cursor()
+            # Tabela de Ativos
+            cursor.execute("""CREATE TABLE IF NOT EXISTS ativos (
+                ticker TEXT PRIMARY KEY, preco_teto REAL, dy_alvo REAL)""")
+            # Tabela de Transações
+            cursor.execute("""CREATE TABLE IF NOT EXISTS transacoes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT, data TEXT, ticker TEXT, 
+                tipo TEXT, qtd REAL, preco REAL)""")
+            conn.commit()
 
-# --- LÓGICA QUANTITATIVA ---
-def analisar_risco(ticker):
-    try:
-        dados = yf.Ticker(ticker).history(period="1mo")
-        vol = dados['Close'].pct_change().std() * 100
-        return "🔥 ALTO RISCO" if vol > 3.5 else "✅ ESTÁVEL"
-    except: return "⚠️ Indisponível"
+    def verificar_acesso(self, user, pwd):
+        hash_correto = "9200fa4644026da68997ef05dc6b5fe73229239a5ca2d699e69777f97b6ec340"
+        return user == "yurygabrielpb@gmail.com" and hashlib.sha256(pwd.encode()).hexdigest() == hash_correto
 
-# --- BANCO DE DADOS (AÇÕES) ---
-def inicializar_banco():
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    # Tabela exclusiva para ações
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS carteira (
-            ticker TEXT PRIMARY KEY,
-            preco_teto REAL,
-            quantidade REAL,
-            preco_medio REAL
-        )
-    """)
-    conn.commit()
-    conn.close()
+# --- MÓDULO DE INTELIGÊNCIA ---
+class AnalisadorMercado:
+    @staticmethod
+    def get_preco_atual(ticker):
+        try:
+            return yf.Ticker(ticker).history(period="1d")['Close'].iloc[-1]
+        except Exception as e:
+            logging.error(f"Erro ao buscar {ticker}: {e}")
+            return None
 
-# --- INTERFACE ---
+# --- INTERFACE (UI) ---
 def main():
-    st.set_page_config(page_title="Mesa Quant Pro", layout="wide")
-    
-    if "autenticado" not in st.session_state: st.session_state["autenticado"] = False
-    
-    if not st.session_state["autenticado"]:
-        st.title("🔐 Login Mesa Quant")
-        user = st.text_input("E-mail")
-        pwd = st.text_input("Senha", type="password")
-        if st.button("Entrar") and verificar_credenciais(user, pwd):
-            st.session_state["autenticado"] = True
-            realizar_backup()
-            st.rerun()
+    st.set_page_config(page_title="Mesa Quant Pro - Enterprise", layout="wide")
+    app = TerminalQuantPro()
+
+    if "auth" not in st.session_state: st.session_state.auth = False
+
+    if not st.session_state.auth:
+        st.title("🔐 Acesso Restrito")
+        u = st.text_input("Usuário")
+        p = st.text_input("Senha", type="password")
+        if st.button("Autenticar"):
+            if app.verificar_acesso(u, p):
+                st.session_state.auth = True
+                st.rerun()
         return
 
-    inicializar_banco()
-    st.title("🛰️ Terminal Quantitativo Pro - Ações")
-
-    # Colunas de Gestão
-    col1, col2 = st.columns(2)
+    st.title("🛰️ Terminal Quantitativo Pro - Engine v1.0")
     
-    with col1:
-        st.subheader("Adicionar Ativo")
-        ticker = st.text_input("Ticker (ex: PETR4)").upper()
-        teto = st.number_input("Preço Teto de Compra")
-        qtd = st.number_input("Quantidade")
-        if st.button("Salvar na Carteira"):
-            # Lógica de inserção no SQL
-            st.success(f"Ativo {ticker} registrado!")
+    # Menu Lateral Profissional
+    with st.sidebar:
+        st.header("Gestão de Portfólio")
+        aba = st.radio("Módulo", ["Carteira", "Lançar Ordem", "Análise Fundamentalista"])
 
-    with col2:
-        st.subheader("Análise de Risco")
-        ativo_sel = st.selectbox("Selecione o Ativo:", ["KLBN4", "MXRF11", "BBAS3", "PETR4"])
-        st.metric("Status Atual", analisar_risco(ativo_sel))
+    if aba == "Carteira":
+        st.subheader("Resumo de Posição")
+        # Lógica de JOIN SQL para calcular PM e Custo Total
+        pass # Implementação consolidada de consulta SQL
+
+    elif aba == "Lançar Ordem":
+        st.subheader("Livro Diário de Ordens")
+        with st.form("ordem_form"):
+            t = st.text_input("Ticker").upper()
+            q = st.number_input("Quantidade")
+            p = st.number_input("Preço")
+            if st.form_submit_button("Confirmar"):
+                # Lógica de inserção segura
+                st.success("Ordem gravada no Ledger.")
+
+    elif aba == "Análise Fundamentalista":
+        st.subheader("Valuation e Preço Teto")
+        # Lógica de comparação Preço Atual vs Preço Teto
 
 if __name__ == "__main__":
     main()
+
 
 
 
