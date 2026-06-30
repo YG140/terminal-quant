@@ -1,3 +1,4 @@
+
 import streamlit as st
 import yfinance as yf
 import pandas as pd
@@ -6,82 +7,95 @@ import hashlib
 import logging
 from datetime import datetime
 
-# --- CONFIGURAÇÃO DE LOG (Para debug profissional) ---
+# --- CONFIGURAÇÃO PROFISSIONAL ---
 logging.basicConfig(level=logging.INFO)
 
 class TerminalQuantPro:
-    def __init__(self, db_name="mesa_quant_pro.db"):
+    def __init__(self, db_name="terminal_enterprise.db"):
         self.db_name = db_name
         self._inicializar_banco()
 
     def _inicializar_banco(self):
         with sqlite3.connect(self.db_name) as conn:
             cursor = conn.cursor()
-            # Tabela de Ativos
+            # Tabela de Parâmetros (Ativos)
             cursor.execute("""CREATE TABLE IF NOT EXISTS ativos (
                 ticker TEXT PRIMARY KEY, preco_teto REAL, dy_alvo REAL)""")
-            # Tabela de Transações
+            # Tabela de Transações (Livro Diário v30)
             cursor.execute("""CREATE TABLE IF NOT EXISTS transacoes (
                 id INTEGER PRIMARY KEY AUTOINCREMENT, data TEXT, ticker TEXT, 
                 tipo TEXT, qtd REAL, preco REAL)""")
             conn.commit()
 
-    def verificar_acesso(self, user, pwd):
-        hash_correto = "9200fa4644026da68997ef05dc6b5fe73229239a5ca2d699e69777f97b6ec340"
-        return user == "yurygabrielpb@gmail.com" and hashlib.sha256(pwd.encode()).hexdigest() == hash_correto
+    # --- LÓGICA DE LOGIN (Padrão v45.0) ---
+    @staticmethod
+    def verificar_acesso(user, pwd):
+        # E-mail e Hash validados conforme a sua versão 45.0
+        email_correto = "yurygabriel1.40@gmail.com"
+        hash_correto = "aa78f445e7b478beec6ac69594a3c6cc50cf9171405ef4471808d4dd0485d600"
+        
+        hash_digitado = hashlib.sha256(pwd.strip().encode('utf-8')).hexdigest()
+        return user.strip() == email_correto and hash_digitado == hash_correto
 
-# --- MÓDULO DE INTELIGÊNCIA ---
+# --- LÓGICA DE MERCADO ---
 class AnalisadorMercado:
     @staticmethod
-    def get_preco_atual(ticker):
+    def get_preco(ticker):
         try:
             return yf.Ticker(ticker).history(period="1d")['Close'].iloc[-1]
-        except Exception as e:
-            logging.error(f"Erro ao buscar {ticker}: {e}")
+        except:
             return None
 
 # --- INTERFACE (UI) ---
 def main():
-    st.set_page_config(page_title="Mesa Quant Pro - Enterprise", layout="wide")
+    st.set_page_config(page_title="Mesa Quant Enterprise", layout="wide")
     app = TerminalQuantPro()
 
     if "auth" not in st.session_state: st.session_state.auth = False
 
     if not st.session_state.auth:
-        st.title("🔐 Acesso Restrito")
-        u = st.text_input("Usuário")
+        st.title("🔐 Terminal Quantitativo - Autenticação")
+        u = st.text_input("E-mail")
         p = st.text_input("Senha", type="password")
-        if st.button("Autenticar"):
+        if st.button("Entrar no Sistema"):
             if app.verificar_acesso(u, p):
                 st.session_state.auth = True
                 st.rerun()
+            else:
+                st.error("Acesso negado.")
         return
 
-    st.title("🛰️ Terminal Quantitativo Pro - Engine v1.0")
+    st.title("🛰️ Terminal Quantitativo Pro - Engine v2.0")
     
-    # Menu Lateral Profissional
-    with st.sidebar:
-        st.header("Gestão de Portfólio")
-        aba = st.radio("Módulo", ["Carteira", "Lançar Ordem", "Análise Fundamentalista"])
+    tab1, tab2, tab3 = st.tabs(["📊 Carteira", "📝 Livro Diário", "🩺 Auditoria"])
 
-    if aba == "Carteira":
+    with tab1:
         st.subheader("Resumo de Posição")
-        # Lógica de JOIN SQL para calcular PM e Custo Total
-        pass # Implementação consolidada de consulta SQL
+        with sqlite3.connect("terminal_enterprise.db") as conn:
+            df = pd.read_sql("SELECT ticker, SUM(qtd) as total, SUM(qtd*preco)/SUM(qtd) as pm FROM transacoes GROUP BY ticker", conn)
+            st.dataframe(df, use_container_width=True)
 
-    elif aba == "Lançar Ordem":
-        st.subheader("Livro Diário de Ordens")
-        with st.form("ordem_form"):
+    with tab2:
+        st.subheader("Lançamento de Ordem")
+        with st.form("ordem"):
             t = st.text_input("Ticker").upper()
             q = st.number_input("Quantidade")
             p = st.number_input("Preço")
-            if st.form_submit_button("Confirmar"):
-                # Lógica de inserção segura
-                st.success("Ordem gravada no Ledger.")
+            if st.form_submit_button("Registrar"):
+                with sqlite3.connect("terminal_enterprise.db") as conn:
+                    conn.execute("INSERT INTO transacoes (data, ticker, tipo, qtd, preco) VALUES (?,?,?,?,?)",
+                                 (datetime.now().strftime("%Y-%m-%d"), t, 'COMPRA', q, p))
+                st.success("Transação registrada.")
 
-    elif aba == "Análise Fundamentalista":
-        st.subheader("Valuation e Preço Teto")
-        # Lógica de comparação Preço Atual vs Preço Teto
+    with tab3:
+        st.subheader("Auditoria de Mercado")
+        with sqlite3.connect("terminal_enterprise.db") as conn:
+            ativos = pd.read_sql("SELECT * FROM ativos", conn)
+            for _, row in ativos.iterrows():
+                p = AnalisadorMercado.get_preco(row['ticker'])
+                if p:
+                    status = "🟢" if p <= row['preco_teto'] else "❌"
+                    st.metric(f"{row['ticker']} {status}", f"R$ {p:.2f}", delta=f"Teto: R$ {row['preco_teto']:.2f}")
 
 if __name__ == "__main__":
     main()
