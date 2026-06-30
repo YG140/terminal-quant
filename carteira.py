@@ -12,14 +12,20 @@ from email.message import EmailMessage
 # Configurações
 DB_NAME = "carteira_quant.db"
 
-# --- MÓDULO DE SEGURANÇA (Profissional) ---
+# --- MÓDULO DE SEGURANÇA (Seguro e Profissional) ---
 def verificar_credenciais(usuario, senha):
-    # Hash correspondente à senha "Bahia2026"
+    # O hash abaixo corresponde à senha "Bahia2026"
     hash_da_senha = "9200fa4644026da68997ef05dc6b5fe73229239a5ca2d699e69777f97b6ec340"
-    return usuario == "yurygabriel1.40@gmail.com" and hashlib.sha256(senha.encode()).hexdigest() == hash_da_senha
+    
+    # .strip() remove espaços em branco acidentais antes ou depois dos dados
+    usuario_limpo = usuario.strip()
+    senha_limpa = senha.strip()
+    
+    hash_digitado = hashlib.sha256(senha_limpa.encode()).hexdigest()
+    
+    return usuario_limpo == "yurygabriel1.40@gmail.com" and hash_digitado == hash_da_senha
 
 def realizar_backup_banco():
-    # Verifica se o arquivo existe antes de tentar copiar
     if os.path.exists(DB_NAME):
         if not os.path.exists("backup_financas"):
             os.makedirs("backup_financas")
@@ -87,4 +93,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
