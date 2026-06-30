@@ -22,7 +22,7 @@ def realizar_backup_banco():
 
 def enviar_alerta_oportunidade(ticker, preco_atual):
     # Lembre-se: Use uma Senha de App do Google aqui
-    email_usuario = "yurygabrielpb@gmail.com"
+    email_usuario = "yurygabriel1.40@gmail.com"
     senha_app = "SUA_SENHA_DE_APP_AQUI" 
     msg = EmailMessage()
     msg['Subject'] = f"🚨 OPORTUNIDADE: {ticker} em Ponto de Compra!"
