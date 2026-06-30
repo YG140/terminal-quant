@@ -14,7 +14,8 @@ DB_NAME = "carteira_quant.db"
 
 # --- MÓDULOS DE SEGURANÇA E BACKUP ---
 def verificar_credenciais(usuario, senha):
-    return usuario == "yurygabriel1.40@gmail.com" and senha == "Bahia2025" and hashlib.sha256(senha.encode()).hexdigest() == "9200fa4644026da68997ef05dc6b5fe73229239a5ca2d699e69777f97b6ec340"
+ return usuario == "yurygabriel1.40@gmail.com" and senha == "Bahia2026"
+and hashlib.sha256(senha.encode()).hexdigest() == "9200fa4644026da68997ef05dc6b5fe73229239a5ca2d699e69777f97b6ec340"
 
 def realizar_backup_banco():
     if not os.path.exists("backup_financas"): os.makedirs("backup_financas")
