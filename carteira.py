@@ -14,17 +14,17 @@ DB_NAME = "carteira_quant.db"
 
 # --- MÓDULOS DE SEGURANÇA E BACKUP ---
 def verificar_credenciais(usuario, senha):
- return usuario == "yurygabriel1.40@gmail.com" and senha == "Bahia2026"
-and hashlib.sha256(senha.encode()).hexdigest() == "9200fa4644026da68997ef05dc6b5fe73229239a5ca2d699e69777f97b6ec340"
+    # E-mail corrigido
+    return usuario == "yurygabriel1.40@gmail.com" and senha == "Bahia2026"
 
 def realizar_backup_banco():
     if not os.path.exists("backup_financas"): os.makedirs("backup_financas")
     shutil.copy2(DB_NAME, f"backup_financas/backup_{datetime.now().strftime('%Y%m%d_%H%M')}.db")
 
 def enviar_alerta_oportunidade(ticker, preco_atual):
-    # Lembre-se: Use uma Senha de App do Google aqui
+    # E-mail corrigido para envio e recebimento
     email_usuario = "yurygabriel1.40@gmail.com"
-    senha_app = "SUA_SENHA_DE_APP_AQUI" 
+    senha_app = "dzdcamwbmrejscal" 
     msg = EmailMessage()
     msg['Subject'] = f"🚨 OPORTUNIDADE: {ticker} em Ponto de Compra!"
     msg['From'] = email_usuario
@@ -46,11 +46,12 @@ def inicializar_banco():
     conn.close()
 
 def processar_arquivo_bancario(uploaded_file):
-    df = pd.read_csv(uploaded_file)
-    conn = sqlite3.connect(DB_NAME)
-    df.to_sql('tb_transacoes_v39', conn, if_exists='append', index=False)
-    conn.close()
-    st.success("✅ Extrato processado!")
+    if uploaded_file is not None:
+        df = pd.read_csv(uploaded_file)
+        conn = sqlite3.connect(DB_NAME)
+        df.to_sql('tb_transacoes_v39', conn, if_exists='append', index=False)
+        conn.close()
+        st.success("✅ Extrato processado!")
 
 # --- INTERFACE PRINCIPAL ---
 def main():
